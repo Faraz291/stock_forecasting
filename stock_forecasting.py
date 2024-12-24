@@ -14,7 +14,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense
 import io
 
 
@@ -39,7 +39,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
+# **********************************************************************************************************************************
 # image
 st.image("D:\python-ka-chilla\project\stock_cover.webp")
 
@@ -84,7 +84,7 @@ def parameter_ui(algo):
         params['seasonal_order'] = (P, D, Q, m)
 
     elif algo == 'LSTM':
-        st.sidebar.write("LSTM model is implementing it takes time")
+        st.sidebar.write("LSTM model is running, it takes time")
     
     elif algo == 'Prophet':
         st.sidebar.write("Prophet parameter selection is not implemented yet.")
@@ -92,9 +92,7 @@ def parameter_ui(algo):
     return params
 params = parameter_ui(algo)
 
-
-
-
+# ********************************************************************************************************************************************************
 # fetch the user selected ticker data
 data = yf.download(ticker, start=start_date, end=end_date)
 
