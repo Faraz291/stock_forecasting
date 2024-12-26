@@ -13,9 +13,10 @@ from statsmodels.tsa.stattools import adfuller
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential 
 from tensorflow.keras.layers import LSTM, Dense
 import io
+from prophet import Prophet
 
 
 # title
@@ -87,7 +88,7 @@ def parameter_ui(algo):
         st.sidebar.write("LSTM model is running, it takes time")
     
     elif algo == 'Prophet':
-        st.sidebar.write("Prophet parameter selection is not implemented yet.")
+        st.sidebar.write("Prophet algorithm running")
     
     return params
 params = parameter_ui(algo)
@@ -110,9 +111,9 @@ fig = px.line(data, x=data.index, y=data['Close'].squeeze(), title=f'{ticker} St
 st.plotly_chart(fig)
 
 # Decompose the data
-st.header('Decomposition of the data')
-decomposition = seasonal_decompose(data['Close'], model='additive', period=365)
-st.write(decomposition.plot())
+# st.header('Decomposition of the data')
+# decomposition = seasonal_decompose(data['Close'], model='additive', period=365)
+# st.write(decomposition.plot())
 
 stl = STL(data['Close'], period=365)  
 result = stl.fit()
@@ -179,7 +180,7 @@ def arima_forecast(forecast_period, params):
     r2 = r2_score(y_true, y_pred)
 
     # Display metrics
-    st.write("### Evaluation Metrics")
+    st.write("### Model Evaluation")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAPE):** {mse:.2f}")
@@ -232,7 +233,7 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     r2 = r2_score(y_true, y_pred)
 
     # Display metrics
-    st.write("### Evaluation Metrics")
+    st.write("### Model Evaluation")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAPE):** {mse:.2f}")
@@ -252,8 +253,9 @@ def LSTM_model(forecast_period):
     df1 = data['Close']
     # data_scaled = scaler.fit_transform(np.array(df1).reshape(-1, 1))
     data_scaled = scaler.fit_transform(df1.values.reshape(-1, 1))   # values is used to convert series to array
+    st.write(f'{ticker} Stock Closing Price')
     st.write(df1) 
-    st.write(data_scaled)
+    # st.write(data_scaled)
 
     # # Split the data into training and testing sets
     training_size = int(len(data_scaled) * 0.70)
@@ -276,10 +278,10 @@ def LSTM_model(forecast_period):
     time_step = 100
     X_train, y_train = prepare_data(train_data, time_step)
     X_test, y_test = prepare_data(test_data, time_step)
-    st.write(X_train.shape) 
-    st.write(y_train.shape) 
-    st.write(X_test.shape) 
-    st.write(y_test.shape)
+    # st.write(X_train.shape) 
+    # st.write(y_train.shape) 
+    # st.write(X_test.shape) 
+    # st.write(y_test.shape)
 
     # Reshape data to 3D for LSTM input
     X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1)) # converting 2D to 3D
@@ -326,7 +328,7 @@ def LSTM_model(forecast_period):
     r2 = r2_score(y_test, y_pred)
 
     # Display metrics
-    st.write("### Evaluation Metrics")
+    st.write("### Model Evaluation")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
@@ -412,7 +414,48 @@ def LSTM_model(forecast_period):
 
 
 # ********************************************************************************************************************************************************
+# ************************* Prophet Model *************************
 
+def prophet(forecast_period):
+    df_pro = data['Close']
+    # st.header(f'{ticker} Stock Forecasting using Prophet')
+    st.write('Original Data')
+    st.write(df_pro)
+
+    df1=df_pro.reset_index(inplace=True)
+    # st.write(df1)
+
+    df_pro['Date'] = pd.to_datetime(df_pro['Date'])  # Convert to datetime
+    df_prophet = df_pro.rename(columns={"Date": "ds", ticker: "y"})  # Prophet expects these column names
+    # st.write(df_prophet.columns)
+
+    # Initialize and fit the Prophet model
+    model = Prophet()
+    model.fit(df_prophet)
+
+    # Create a future dataframe
+    future = model.make_future_dataframe(periods=forecast_period)  # Forecast for the next 30 days
+    forecast = model.predict(future)
+
+    # Display the forecast data
+    st.write("Forecasted Data")
+    st.write(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(forecast_period))
+
+    # Plot the forecast
+    st.write('Prophet model forecasting')
+    fig1 = model.plot(forecast)
+    st.pyplot(fig1)
+
+    st.write('Decomposition of the data')
+    # Plot the components
+    fig2 = model.plot_components(forecast)
+    st.pyplot(fig2)
+
+    # st.write(forecast)
+    # df_pro.set_index('Date')[ticker]
+
+
+# ********************************************************************************************************************************************************
 
 # predict the future values (forecasting)
 forecast_period = st.number_input('Enter the number of days for forecasting', 1, 365, 10)
@@ -420,11 +463,17 @@ forecast_period = st.number_input('Enter the number of days for forecasting', 1,
 # applying model
 def model_impl(algo, params, forecast_period):
     if algo == 'ARIMA':
+        st.header(f'{ticker} Stock Forecasting using ARIMA')
         arima_forecast(forecast_period, params)
     elif algo == 'SARIMA':
+        st.header(f'{ticker} Stock Forecasting using SARIMA')
         sarima_forecast(forecast_period, params)
     elif algo == 'LSTM':
+        st.header(f'{ticker} Stock Forecasting using LSTM')
         LSTM_model(forecast_period)
+    elif algo == 'Prophet':
+        st.header(f'{ticker} Stock Forecasting using Prophet')
+        prophet(forecast_period)    
     # return model
 
 
@@ -433,100 +482,12 @@ model_impl(algo, params, forecast_period)
 
 # ********************************************************************************************************************************************************
 
-# # Preprocess data
-# scaler = MinMaxScaler(feature_range=(0, 1))
-# data_scaled = scaler.fit_transform(data['Close'].values.reshape(-1, 1))
+st.write('---')
+# st.write('# THE END')
+st.markdown("<h1 style='text-align: center;'>*** THE END ***</h1>", unsafe_allow_html=True)
 
-# # Prepare training and test datasets
-# def prepare_data(data, time_steps):
-#     X, y = [], []
-#     for i in range(time_steps, len(data)):
-#         X.append(data[i-time_steps:i, 0])
-#         y.append(data[i, 0])
-#     return np.array(X), np.array(y)
-
-# TIME_STEPS = 6
-# X, y = prepare_data(data_scaled, TIME_STEPS)
-
-# # Split the data into training and testing sets
-# split = int(0.7 * len(X))   # chronological split
-# X_train, y_train = X[:split], y[:split]
-# X_test, y_test = X[split:], y[split:]
-
-# # Reshape data to 3D for LSTM input
-# X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], 1))
-# X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], 1))
-# # st.write(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
-# # st.write(X_train[1])
-# # Build the RNN model
-# model = Sequential([
-#     LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)),
-#     Dropout(0.2),
-#     LSTM(50, return_sequences=False),
-#     Dropout(0.2),
-#     Dense(25, activation='relu'),
-#     Dense(1)
-# ])
-
-# # Compile the model
-# model.compile(optimizer='adam', loss='mean_squared_error')
-
-# # Train the model
-# model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
-
-# # Make predictions
-# predictions = model.predict(X_test)
-# # predictions = model.predict(forecast_period)
-# # predictions = model.predict(start=len(data), end=len(data) + forecast_period)
-# st.write(predictions)
-
-# # Reverse scaling to get actual prices
-# predictions = scaler.inverse_transform(predictions.reshape(-1, 1))
-# y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
-
-
-# # Plot results using Plotly
-# fig = go.Figure()
-# fig.add_trace(go.Scatter(y=y_test.flatten(), mode='lines', name='True Price'))
-# fig.add_trace(go.Scatter(y=predictions.flatten(), mode='lines', name='Predicted Price'))
-# fig.update_layout(
-#     title='Stock Price Prediction using LSTM',
-#     xaxis_title='Time',
-#     yaxis_title='Stock Price',
-#     legend=dict(x=0, y=1)
-# )
-# st.plotly_chart(fig)
-# # Forecast future values
-# # forecast_period = st.number_input('Enter the number of days for forecasting', 1, 365, 10)
-# last_sequence = data_scaled[-TIME_STEPS:]
-
-# future_predictions = []
-# current_input = last_sequence
-# for _ in range(forecast_period):
-#     current_input = current_input.reshape((1, TIME_STEPS, 1))
-#     next_pred = model.predict(current_input)
-#     future_predictions.append(next_pred[0, 0])
-#     current_input = np.append(current_input[0, 1:], next_pred, axis=0)
-
-# # Reverse scaling for forecasted values
-# future_predictions = scaler.inverse_transform(np.array(future_predictions).reshape(-1, 1))
-# # st.write(future_predictions)
-# # adding index to the predictions
-# future_predictions = pd.DataFrame(future_predictions)
-# future_predictions.index.name = 'Date'
-# future_predictions.index = pd.date_range(start=end_date, periods=len(future_predictions), freq='D')
-# future_predictions.rename(columns={0: 'Future Predictions'}, inplace=True)
-# st.write(f"Forecasted Prices for the next {forecast_period} days:", future_predictions)
-# st.write('Actual Data', data['Close'].tail())
-# st.write('---')
-# # Display forecasted results
-# # st.write(f"Forecasted Prices for the next {forecast_period} days:", future_predictions)
-#     # plot the forecasted values
-# fig = go.Figure()
-# # adding actual data
-# fig.add_trace(go.Scatter(x=data.index[-90:], y=data['Close'][-90:].squeeze(), mode='lines', name='Actual Data', line=dict(color='blue')))
-# # adding forecasted data
-# fig.add_trace(go.Scatter(x=future_predictions.index, y=future_predictions['Future Predictions'], mode='lines', name='Forecasted Data', line=dict(color='red')))
-# # set the title and axis labels
-# fig.update_layout(title=f'{ticker} Stock Forecasting', xaxis_title='Date', yaxis_title='Price', width=1100, height=600)
-# st.plotly_chart(fig)
+st.write('---')
+st.header("This app edveloped by: Faraz Ahmed")
+st.markdown('<a href="https://github.com/Faraz291/" target="_blank">GitHub</a>', unsafe_allow_html=True)    
+st.markdown('<a href="https://www.linkedin.com/in/farazahmed1997/" target="_blank">LinkedIn</a>', unsafe_allow_html=True)
+st.markdown('<a href="https://www.instagram.com/faraz__ahmed/" target="_blank">Instagram</a>', unsafe_allow_html=True)
