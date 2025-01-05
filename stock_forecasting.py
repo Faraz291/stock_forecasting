@@ -10,11 +10,12 @@ from datetime import date, time
 from statsmodels.tsa.seasonal import seasonal_decompose, STL
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, mean_absolute_percentage_error
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array
 from tensorflow.keras.models import Sequential 
 from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.callbacks import EarlyStopping
 import io
 from prophet import Prophet
 
@@ -105,17 +106,19 @@ st.write('Data from', start_date, 'to', end_date)
 st.write(data)
 
 # plot the data
-st.header('Stock Closing Price')
+st.header('Stock Closing Price (USD)')
 # st.subheader('Line Chart')
-fig = px.line(data, x=data.index, y=data['Close'].squeeze(), title=f'{ticker} Stock Closing Price', width=1100, height=600)
+fig = px.line(data, x=data.index, y=data['Close'].squeeze())
+fig.update_layout(title=f'{ticker} Stock Closing Price', xaxis_title='Date', yaxis_title='Price (USD)', width=1100, height=600)
+
 st.plotly_chart(fig)
 
 # Decompose the data
-# st.header('Decomposition of the data')
-# decomposition = seasonal_decompose(data['Close'], model='additive', period=365)
+st.header('Decomposition of the data')
+# decomposition = seasonal_decompose(data['Close'], model='additive', period=365) # using a fixed seasonal pattern
 # st.write(decomposition.plot())
 
-stl = STL(data['Close'], period=365)  
+stl = STL(data['Close'], period=365)  # use LOESS (Locally Estimated Scatterplot Smoothing).
 result = stl.fit()
 
 # Plot the components
@@ -130,8 +133,8 @@ st.write('p-value:', adfuller(data['Close'])[1] < 0.05) # if p-value is less tha
 split_index = int(len(data) * 0.8)  # 80-20 chronological split
 train_data1 = data[:split_index].Close
 test_data1 = data[split_index:].Close
-# st.write('Train Data:', train_data1)
-# st.write('Test Data:', test_data1)
+# st.write('Train Data:', train_data1.shape)
+# st.write('Test Data:', test_data1.shape)
 
 
 
@@ -139,10 +142,12 @@ test_data1 = data[split_index:].Close
 # ************************* ARIMA Model *************************
 
 def arima_forecast(forecast_period, params):
+    # model = sm.tsa.ARIMA(data['Close'], order=(params['p'], params['d'], params['q']))
     model = sm.tsa.ARIMA(data['Close'], order=(params['p'], params['d'], params['q']))
     model = model.fit()
     # predict the future values
     predictions = model.get_prediction(start=len(data), end=len(data) + forecast_period)  
+    # predictions = model.predict(n_periods=len(test_data1))
     # predictions = model.predict(start=len(data), end=len(data) + forecast_period)  
     predictions = predictions.predicted_mean
     # st.write(predictions)
@@ -151,8 +156,8 @@ def arima_forecast(forecast_period, params):
     predictions.index = pd.date_range(start=end_date, periods=len(predictions), freq='D')
     predictions = pd.DataFrame(predictions)
     predictions.index.name = 'Date'
-    st.write('Predictions', predictions)
     st.write('Actual Data', data['Close'].tail())
+    st.write('Predictions', predictions)
     st.write('---')
     # print model summary
     st.header('Model Summary')
@@ -165,13 +170,14 @@ def arima_forecast(forecast_period, params):
     # adding forecasted data
     fig.add_trace(go.Scatter(x=predictions.index, y=predictions['predicted_mean'], mode='lines', name='Forecasted Data', line=dict(color='red')))
     # set the title and axis labels
-    fig.update_layout(title=f'{ticker} Stock Forecasting', xaxis_title='Date', yaxis_title='Price', width=1100, height=600)
+    fig.update_layout(title=f'{ticker} Stock Forecasting', xaxis_title='Date', yaxis_title='Price (USD)', width=1100, height=600)
     st.plotly_chart(fig)
 
 
     # Assigning variables for evaluation
     forecast = model.get_forecast(steps=len(test_data1))
     y_pred = forecast.predicted_mean
+    # y_pred = predictions
     y_true = test_data1
     # Calculate evaluation metrics
     mae = mean_absolute_error(y_true, y_pred)
@@ -204,8 +210,8 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     predictions.index = pd.date_range(start=end_date, periods=len(predictions), freq='D')
     predictions = pd.DataFrame(predictions)
     predictions.index.name = 'Date'
-    st.write('Predictions', predictions)
     st.write('Actual Data', data['Close'].tail())
+    st.write('Predictions', predictions)
     st.write('---')
     # print model summary
     st.header('Model Summary')
@@ -218,7 +224,7 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     # adding forecasted data
     fig.add_trace(go.Scatter(x=predictions.index, y=predictions['predicted_mean'], mode='lines', name='Forecasted Data', line=dict(color='red')))
     # set the title and axis labels
-    fig.update_layout(title=f'{ticker} Stock Forecasting', xaxis_title='Date', yaxis_title='Price', width=1100, height=600)
+    fig.update_layout(title=f'{ticker} Stock Forecasting', xaxis_title='Date', yaxis_title='Price (USD)', width=1100, height=600)
     st.plotly_chart(fig)
 
 
@@ -255,7 +261,7 @@ def LSTM_model(forecast_period):
     # st.write(data_scaled)
 
     # # Split the data into training and testing sets
-    training_size = int(len(data_scaled) * 0.70)
+    training_size = int(len(data_scaled) * 0.8)
     test_size = len(data_scaled) - training_size
     train_data, test_data = data_scaled[0:training_size, :], data_scaled[training_size:len(data_scaled), :1]    # :1 is used to convert 1D array to 2D array
     # st.write(len(data_scaled))
@@ -287,25 +293,28 @@ def LSTM_model(forecast_period):
 
     # Build the LSTM model
     model = Sequential()
-    model.add(LSTM(50, return_sequences=True, input_shape=(X_train.shape[1],1)))     #X_train.shape[1] means 100 time steps  
+    model.add(LSTM(units=50, return_sequences=True, input_shape=(X_train.shape[1],1)))     #X_train.shape[1] means 100 time steps  
     model.add(LSTM(50, return_sequences=True))
-    model.add(LSTM(50))
-    model.add(Dense(1))
+    model.add(LSTM(units=50))
+    model.add(Dense(units=1))
     model.compile(loss='mean_squared_error', optimizer='adam')
 
-    # Capture the model summary as a string
-    summary_string = io.StringIO()
-    model.summary(print_fn=lambda x: summary_string.write(x + "\n"))
-    summary = summary_string.getvalue()
-    summary_string.close()
+    # Early stopping
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-    # Display the model summary
-    st.text("Model Summary:")
-    st.text(summary)
+    # # Capture the model summary as a string
+    # summary_string = io.StringIO()
+    # model.summary(print_fn=lambda x: summary_string.write(x + "\n"))
+    # summary = summary_string.getvalue()
+    # summary_string.close()
+
+    # # Display the model summary
+    # st.text("Model Summary:")
+    # st.text(summary)
     # st.write(model.summary())
 
     # # Train the model
-    model.fit(X_train, y_train, epochs=100, batch_size=62, validation_data=(X_test, y_test), verbose=1)
+    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_test, y_test), verbose=1, callbacks=[early_stopping])
 
     # Lets do the prediction and check performance metrics
     train_predict = model.predict(X_train)
@@ -314,15 +323,18 @@ def LSTM_model(forecast_period):
     # Transform back to original form
     train_predict = scaler.inverse_transform(train_predict)
     test_predict = scaler.inverse_transform(test_predict)
-
+    y_test = scaler.inverse_transform(y_test.reshape(-1, 1))
 
     # Assigning variables for evaluation
     y_pred = test_predict
+    # st.write('y_test:', y_test)
+    # st.write('test_predict:', y_pred)
     # Calculate evaluation metrics
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_test, y_pred)
+    mape = mean_absolute_percentage_error(y_test, y_pred) * 100
 
     # Display metrics
     st.write("### Model Evaluation")
@@ -330,6 +342,7 @@ def LSTM_model(forecast_period):
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
     st.write(f"**R-squared (R2):** {r2:.2f}")
+    st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
     # plotting
@@ -350,7 +363,7 @@ def LSTM_model(forecast_period):
     fig.update_layout(
         title="Stock Price Prediction",
         xaxis_title="Date",
-        yaxis_title="Stock Price",
+        yaxis_title="Stock Price in USD",
         legend=dict(x=0, y=1)
     )
     st.plotly_chart(fig)
@@ -365,7 +378,7 @@ def LSTM_model(forecast_period):
     lst_output=[]
     n_steps=100
     i=0
-    while(i<30):
+    while(i<forecast_period):
         if(len(temp_input)>100):
             x_input=np.array(temp_input[1:])
             # st.write("{} day input {}" .format(i,x_input))
@@ -396,6 +409,14 @@ def LSTM_model(forecast_period):
     df3=data_scaled.tolist()
     df3.extend(lst_output)
 
+    st.write(f'{forecast_period} days forecasting of {ticker} Stock')
+    # st.write(day_pred, scaler.inverse_transform(lst_output).flatten())
+    df_lstm = pd.DataFrame(scaler.inverse_transform(lst_output).flatten(), day_pred)
+    df_lstm.reset_index(inplace=True)
+    df_lstm = df_lstm.set_index('index')
+    df_lstm.index.name = 'Date'
+    df_lstm.columns = ['Forecasted Price']
+    st.write(df_lstm)
 
     # Create the Plotly figure
     fig = go.Figure()
@@ -404,7 +425,7 @@ def LSTM_model(forecast_period):
     fig.update_layout(
         title= f'{ticker} Stock Forecasting',
         xaxis_title= "Date",
-        yaxis_title="Price",
+        yaxis_title="Price (USD)",
         legend=dict(x=0, y=1)
     )
     st.plotly_chart(fig)
@@ -484,7 +505,7 @@ st.write('---')
 st.markdown("<h1 style='text-align: center;'>*** THE END ***</h1>", unsafe_allow_html=True)
 
 st.write('---')
-st.header("This app edveloped by: Faraz Ahmed")
+st.header("This app developed by: Faraz Ahmed")
 st.markdown('<a href="https://github.com/Faraz291/" target="_blank">GitHub</a>', unsafe_allow_html=True)    
 st.markdown('<a href="https://www.linkedin.com/in/farazahmed1997/" target="_blank">LinkedIn</a>', unsafe_allow_html=True)
 st.markdown('<a href="https://www.instagram.com/faraz__ahmed/" target="_blank">Instagram</a>', unsafe_allow_html=True)
