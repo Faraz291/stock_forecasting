@@ -142,13 +142,10 @@ test_data1 = data[split_index:].Close
 # ************************* ARIMA Model *************************
 
 def arima_forecast(forecast_period, params):
-    # model = sm.tsa.ARIMA(data['Close'], order=(params['p'], params['d'], params['q']))
     model = sm.tsa.ARIMA(data['Close'], order=(params['p'], params['d'], params['q']))
     model = model.fit()
     # predict the future values
     predictions = model.get_prediction(start=len(data), end=len(data) + forecast_period)  
-    # predictions = model.predict(n_periods=len(test_data1))
-    # predictions = model.predict(start=len(data), end=len(data) + forecast_period)  
     predictions = predictions.predicted_mean
     # st.write(predictions)
 
@@ -159,10 +156,12 @@ def arima_forecast(forecast_period, params):
     st.write('Actual Data', data['Close'].tail())
     st.write('Predictions', predictions)
     st.write('---')
+
     # print model summary
     st.header('Model Summary')
     st.write(model.summary())
     st.write('---')
+
     # plot the forecasted values
     fig = go.Figure()
     # adding actual data
@@ -175,15 +174,15 @@ def arima_forecast(forecast_period, params):
 
 
     # Assigning variables for evaluation
-    forecast = model.get_forecast(steps=len(test_data1))
-    y_pred = forecast.predicted_mean
-    # y_pred = predictions
+    y_pred = model.predict(start=len(train_data1), end=len(train_data1)+test_data1.shape[0]-1)  
+    # print(y_pred.shape)
     y_true = test_data1
     # Calculate evaluation metrics
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_true, y_pred)
+    mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
     st.write("### Model Evaluation")
@@ -191,6 +190,7 @@ def arima_forecast(forecast_period, params):
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
     st.write(f"**R-squared (R2):** {r2:.2f}")
+    st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
 
@@ -229,14 +229,14 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
 
 
     # Assigning variables for evaluation
-    forecast = model.get_forecast(steps=len(test_data1))
-    y_pred = forecast.predicted_mean
+    y_pred = model.predict(start=len(train_data1), end=len(train_data1)+test_data1.shape[0]-1) 
     y_true = test_data1
     # Calculate evaluation metrics
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
     r2 = r2_score(y_true, y_pred)
+    mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
     st.write("### Model Evaluation")
@@ -244,6 +244,7 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
     st.write(f"**R-squared (R2):** {r2:.2f}")
+    st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
 # ********************************************************************************************************************************************************
@@ -314,7 +315,7 @@ def LSTM_model(forecast_period):
     # st.write(model.summary())
 
     # # Train the model
-    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_test, y_test), verbose=1, callbacks=[early_stopping])
+    model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), verbose=1, callbacks=[early_stopping])
 
     # Lets do the prediction and check performance metrics
     train_predict = model.predict(X_train)
