@@ -14,7 +14,7 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, m
 from sklearn.preprocessing import MinMaxScaler
 from numpy import array
 from tensorflow.keras.models import Sequential 
-from tensorflow.keras.layers import LSTM, Dense
+from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 import io
 from prophet import Prophet
@@ -50,7 +50,7 @@ st.sidebar.title('Select the parameters from below')
 
 # take user input of start and end date
 start_date = st.sidebar.date_input('Start Date', date(2018, 1, 1))
-end_date = st.sidebar.date_input('End Date', date.today())
+end_date = st.sidebar.date_input('End Date', date(2024,12,31))
 
 # add ticker list
 ticker_list = ['AMZN', 'AAPL', 'MSFT', 'GOOGL', 'NVDA', 'V', 'TSLA', 'META', 'XOM', 'SHEL', 'CVX', 'BYD', 'MA', 'AXP', 'HMC', 'F', 'MSBHF', 'STLA', 
@@ -107,7 +107,6 @@ st.write(data)
 
 # plot the data
 st.header('Stock Closing Price (USD)')
-# st.subheader('Line Chart')
 fig = px.line(data, x=data.index, y=data['Close'].squeeze())
 fig.update_layout(title=f'{ticker} Stock Closing Price', xaxis_title='Date', yaxis_title='Price (USD)', width=1100, height=600)
 
@@ -175,21 +174,22 @@ def arima_forecast(forecast_period, params):
 
     # Assigning variables for evaluation
     y_pred = model.predict(start=len(train_data1), end=len(train_data1)+test_data1.shape[0]-1)  
-    # print(y_pred.shape)
+    # st.write(y_pred)
     y_true = test_data1
+    # st.write(y_true)
     # Calculate evaluation metrics
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
-    r2 = r2_score(y_true, y_pred)
+    # r2 = r2_score(y_true, y_pred)
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
-    st.write("### Model Evaluation")
+    st.write("### Model Evaluation of ARIMA")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    st.write(f"**R-squared (R2):** {r2:.2f}")
+    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -235,15 +235,15 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
-    r2 = r2_score(y_true, y_pred)
+    # r2 = r2_score(y_true, y_pred)
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
-    st.write("### Model Evaluation")
+    st.write("### Model Evaluation of SARIMA")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    st.write(f"**R-squared (R2):** {r2:.2f}")
+    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -300,19 +300,10 @@ def LSTM_model(forecast_period):
     model.add(Dense(units=1))
     model.compile(loss='mean_squared_error', optimizer='adam')
 
+
     # Early stopping
     early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
-    # # Capture the model summary as a string
-    # summary_string = io.StringIO()
-    # model.summary(print_fn=lambda x: summary_string.write(x + "\n"))
-    # summary = summary_string.getvalue()
-    # summary_string.close()
-
-    # # Display the model summary
-    # st.text("Model Summary:")
-    # st.text(summary)
-    # st.write(model.summary())
 
     # # Train the model
     model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_test, y_test), verbose=1, callbacks=[early_stopping])
@@ -334,15 +325,15 @@ def LSTM_model(forecast_period):
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
-    r2 = r2_score(y_test, y_pred)
+    # r2 = r2_score(y_test, y_pred)
     mape = mean_absolute_percentage_error(y_test, y_pred) * 100
 
     # Display metrics
-    st.write("### Model Evaluation")
+    st.write("### Model Evaluation of LSTM")
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    st.write(f"**R-squared (R2):** {r2:.2f}")
+    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -441,7 +432,7 @@ def prophet(forecast_period):
     st.write('Original Data')
     st.write(df_pro)
 
-    df1=df_pro.reset_index(inplace=True)
+    df_pro.reset_index(inplace=True)
     # st.write(df1)
 
     df_pro['Date'] = pd.to_datetime(df_pro['Date'])  # Convert to datetime
@@ -453,7 +444,7 @@ def prophet(forecast_period):
     model.fit(df_prophet)
 
     # Create a future dataframe
-    future = model.make_future_dataframe(periods=forecast_period)  # Forecast for the next 30 days
+    future = model.make_future_dataframe(periods=forecast_period)  # Forecast for the next days
     forecast = model.predict(future)
 
     # Display the forecast data
@@ -468,10 +459,42 @@ def prophet(forecast_period):
     st.write('Decomposition of the data')
     # Plot the components
     fig2 = model.plot_components(forecast)
-    st.pyplot(fig2)
+    st.pyplot(fig2)    
 
     # st.write(forecast)
     # df_pro.set_index('Date')[ticker]
+
+
+    y_true = test_data1
+    st.write(y_true)
+    test_data1.reset_index(inplace=True)
+    test_data1['Date'] = pd.to_datetime(test_data1['Date'])
+    # st.write(test_data1)
+    y = test_data1.rename(columns={"Date": "ds", ticker: "y"})
+    # st.write(y)
+    y_train = model.predict(y) 
+    # st.write(y_train[['ds', 'yhat']].shape)
+    y_train.rename(columns={'ds': 'Date'}, inplace=True)
+    y_train.reset_index()
+    y_train.set_index('Date', inplace=True)  
+
+    y_pred = y_train['yhat']
+    st.write(y_pred)
+  
+    # # Calculate evaluation metrics
+    # mae = mean_absolute_error(y_true, y_pred)
+    # mse = mean_squared_error(y_true, y_pred)
+    # rmse = np.sqrt(mse)
+    # r2 = r2_score(y_true, y_pred)
+    # mape = mean_absolute_percentage_error(y_true, y_pred) * 100
+
+    # # Display metrics
+    # st.write("### Model Evaluation")
+    # st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
+    # st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
+    # st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
+    # st.write(f"**R-squared (R2):** {r2:.2f}")
+    # st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
 # ********************************************************************************************************************************************************
