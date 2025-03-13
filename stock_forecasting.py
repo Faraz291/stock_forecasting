@@ -181,7 +181,6 @@ def arima_forecast(forecast_period, params):
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
-    # r2 = r2_score(y_true, y_pred)
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
@@ -189,7 +188,6 @@ def arima_forecast(forecast_period, params):
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -235,7 +233,6 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     mae = mean_absolute_error(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     rmse = np.sqrt(mse)
-    # r2 = r2_score(y_true, y_pred)
     mape = mean_absolute_percentage_error(y_true, y_pred) * 100
 
     # Display metrics
@@ -243,7 +240,6 @@ def sarima_forecast(forecast_period, params):   # we call sarima by sarimax... e
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -325,7 +321,6 @@ def LSTM_model(forecast_period):
     mae = mean_absolute_error(y_test, y_pred)
     mse = mean_squared_error(y_test, y_pred)
     rmse = np.sqrt(mse)
-    # r2 = r2_score(y_test, y_pred)
     mape = mean_absolute_percentage_error(y_test, y_pred) * 100
 
     # Display metrics
@@ -333,7 +328,6 @@ def LSTM_model(forecast_period):
     st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
     st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
     st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    # st.write(f"**R-squared (R2):** {r2:.2f}")
     st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
 
 
@@ -464,9 +458,8 @@ def prophet(forecast_period):
     # st.write(forecast)
     # df_pro.set_index('Date')[ticker]
 
-
     y_true = test_data1
-    st.write(y_true)
+    # st.write(y_true)
     test_data1.reset_index(inplace=True)
     test_data1['Date'] = pd.to_datetime(test_data1['Date'])
     # st.write(test_data1)
@@ -478,23 +471,8 @@ def prophet(forecast_period):
     y_train.reset_index()
     y_train.set_index('Date', inplace=True)  
 
-    y_pred = y_train['yhat']
-    st.write(y_pred)
-  
-    # # Calculate evaluation metrics
-    # mae = mean_absolute_error(y_true, y_pred)
-    # mse = mean_squared_error(y_true, y_pred)
-    # rmse = np.sqrt(mse)
-    # r2 = r2_score(y_true, y_pred)
-    # mape = mean_absolute_percentage_error(y_true, y_pred) * 100
-
-    # # Display metrics
-    # st.write("### Model Evaluation")
-    # st.write(f"**Mean Absolute Error (MAE):** {mae:.2f}")
-    # st.write(f"**Mean Squared Error (MSE):** {mse:.2f}")
-    # st.write(f"**Root Mean Squared Error (RMSE):** {rmse:.2f}")
-    # st.write(f"**R-squared (R2):** {r2:.2f}")
-    # st.write(f"**Mean Absolute Percentage Error (MAE):** {mape:.2f}%")
+    # y_pred = y_train['yhat']
+    # st.write(y_pred)
 
 
 # ********************************************************************************************************************************************************
